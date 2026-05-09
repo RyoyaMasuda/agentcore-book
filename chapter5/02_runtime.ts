@@ -15,7 +15,7 @@ const app = new BedrockAgentCoreApp({
         }),
         process: async (request) => {
             // プロンプトを取り出してAIエージェントを呼び出し
-            const result = await agent(request.prompt)
+            const result = await agent.invoke(request.prompt)
             return result
         },
     },
