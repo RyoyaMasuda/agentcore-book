@@ -1,13 +1,11 @@
 # CLAUDE.md
 
-このファイルは、本リポジトリで Claude Code（claude.ai/code）が作業するときの指針です。`.gitignore` で除外しているローカル限定ファイルなので、Git 管理されません。
-
 ## プロジェクト概要
 
 書籍「Amazon Bedrock AgentCore実践入門」（SBクリエイティブ刊、2026年5月29日発売）の **読者向けサンプルコード公開リポジトリ**。書籍の各章ハンズオン・コードスニペットを、読者がコピペ・写経・答え合わせできる形で配置する。
 
 - **可視性**: 出版前は Private。出版時に Public へ切り替え予定
-- **正本ポリシー**: 本リポジトリのコードが「サンプルコードの正本」。原稿（Markdown）は **別リポジトリ** [`minorun365/agentcore-book-authoring`](https://github.com/minorun365/agentcore-book-authoring) の `authoring/` 配下で管理されている
+- **正本ポリシー**: 本リポジトリのコードが「サンプルコードの正本」。原稿（Markdown）は著者専用のプライベートリポジトリで管理されている
 - **公開URL**: https://github.com/minorun365/agentcore-book
 
 ## 著者構成
@@ -55,7 +53,7 @@ chapter15/     # 第15章 CDK + AgentCore（アンビエントエージェント
 
 - **Python**: 3.14（全章統一）
 - **パッケージ管理**: uv
-- **AIフレームワーク**: Strands Agents（最新版）
+- **AIフレームワーク**: Strands Agents
 - **インフラ**: AWS CDK（TypeScript）/ AgentCore CLI（`@aws/agentcore@1.0.0-preview.8`）
 - **主要依存**: `strands-agents`, `bedrock-agentcore`, `aws-cdk-lib`, `@aws-cdk/aws-bedrock-agentcore-alpha`
 - **AWSリージョン**: バージニア北部（us-east-1）に統一
