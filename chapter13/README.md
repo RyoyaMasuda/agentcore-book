@@ -79,6 +79,10 @@ git commit -m "最初のコミット"
 git push
 ```
 
+Amplifyのデプロイウィザードで設定する環境変数の変数名です。
+
+- NEXT_PUBLIC_AGENT_ARN
+
 ### 13.4.7 SSRコンピュートロールの設定
 
 IAMロール作成時の「カスタム信頼ポリシー」に貼り付けるJSONです。
