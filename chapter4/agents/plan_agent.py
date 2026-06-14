@@ -37,10 +37,14 @@ def create_plan_agent() -> Agent:
         name="PlanAgent",
         description="クエリを分析し最適な情報取得のための検索戦略を作成します。",
         model=BedrockModel(
+            # 戦略立案には精度の高いOpusモデルを使用する
             model_id="us.anthropic.claude-opus-4-6-v1",
+            # プロンプトキャッシュでシステムプロンプトの再利用コストを削減
             cache_config=CacheConfig(strategy="auto"),
         ),
         system_prompt=SYSTEM_PROMPT,
+        # デフォルトのストリーミング出力ハンドラーを無効化
         callback_handler=None,
+        # ツール呼び出し時にログを出力するフックを設定
         hooks=[ToolLoggingHook()],
     )

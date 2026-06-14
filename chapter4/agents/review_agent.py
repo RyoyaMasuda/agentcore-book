@@ -26,10 +26,14 @@ def create_review_agent() -> Agent:
         name="ReviewAgent",
         description="情報の完全性をレビューし必要に応じて追加検索をリクエスト",
         model=BedrockModel(
+            # 品質判断にバランスの良いSonnetモデルを使用する
             model_id="us.anthropic.claude-sonnet-4-6",
+            # プロンプトキャッシュで繰り返し呼び出しのコストを削減
             cache_config=CacheConfig(strategy="auto"),
         ),
         system_prompt=SYSTEM_PROMPT,
+        # デフォルトのストリーミング出力ハンドラーを無効化
         callback_handler=None,
+        # ツール呼び出し時にログを出力するフックを設定
         hooks=[ToolLoggingHook()],
     )

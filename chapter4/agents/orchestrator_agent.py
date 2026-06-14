@@ -10,6 +10,7 @@ from strands.models import BedrockModel, CacheConfig
 from strands.multiagent import Swarm, SwarmResult
 from strands_tools import current_time
 
+# 現在時刻を取得してシステムプロンプトに埋め込む
 now = current_time.current_time("Asia/Tokyo")
 
 SYSTEM_PROMPT = f"""あなたは複数のソースから情報を統合するリサーチディレクターです。
@@ -25,31 +26,35 @@ SYSTEM_PROMPT = f"""あなたは複数のソースから情報を統合するリ
 """
 
 
-# マルチエージェントSwarmを用いて情報収集を行うツール
+# 複数エージェントをSwarmで協調させて情報収集するツール
 @tool
 async def execute_swarm_search(query: str) -> str:
     """複数のソースからマルチエージェントSwarmを使用して情報収集を行います。"""
 
-    plan = create_plan_agent()  # PlanAgent
-    whatsnew_search = create_whatsnew_search_agent()  # WhatsNewSearchAgent
-    retrieval = create_retrieval_agent()  # RetrievalAgent
-    review = create_review_agent()  # ReviewAgent
+    # 各役割のサブエージェントを生成する
+    plan = create_plan_agent()              # 検索計画を担当
+    whatsnew_search = create_whatsnew_search_agent()  # AWS新着情報を検索
+    retrieval = create_retrieval_agent()    # AWSドキュメントを検索
+    review = create_review_agent()          # 収集結果を品質確認
 
+    # 4エージェントのSwarmを作成し、PlanAgentを起点に実行する
     swarm = Swarm(
         [plan, retrieval, whatsnew_search, review],
         entry_point=plan,
-    )  # 4つのエージェントでSwarmを生成
+    )
 
+    # Swarm全体の最終結果を格納する変数
     multiagent_result: SwarmResult = None
 
+    # Swarmをストリーミング実行し、発生するイベントを逐次処理する
     async for event in swarm.stream_async(query):
         if event.get("type") == "multiagent_node_start":
-            # マルチエージェント内の一つのエージェントの開始イベント
+            # いずれかのエージェントが処理を開始したイベント
             node_id = event.get("node_id")
             print(f"[bold yellow]multiagent_node_start: {node_id}")
 
         elif event.get("type") == "multiagent_handoff":
-            # エージェントの判断により別のエージェントへ処理の制御が移動したイベント
+            # あるエージェントから別エージェントへ引き継ぎが起きたイベント
             message = event.get("message")
             from_node_ids = event.get("from_node_ids")
             to_node_ids = event.get("to_node_ids")
@@ -62,17 +67,17 @@ async def execute_swarm_search(query: str) -> str:
             )
 
         elif event.get("type") == "multiagent_node_stop":
-            # マルチエージェント内の一つのエージェントの終了イベント
+            # いずれかのエージェントが処理を完了したイベント
             node_id = event.get("node_id")
             print(f"[bold yellow]multiagent_node_stop: {node_id}")
 
         elif event.get("type") == "multiagent_result":
-            # マルチエージェントの最終回答を生成したイベント
+            # Swarm全体が完了し最終回答が確定したイベント
             multiagent_result = event.get("result")
 
-    # 最後に実行していたエージェントのノードIDを取得
+    # 最後に処理したエージェントのノードIDを取得する
     final_node_id = multiagent_result.node_history[-1].node_id
-    # 最後に実行していたエージェントのresultを取得
+    # そのエージェントが返した最終回答を取り出す
     final_result = multiagent_result.results[final_node_id]
 
     return final_result.result.message
@@ -86,14 +91,18 @@ def create_orchestrator_agent() -> Agent:
         system_prompt=SYSTEM_PROMPT,
         model=BedrockModel(
             model_id="us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            # プロンプトキャッシュで繰り返し呼び出しのコストを削減
             cache_config=CacheConfig(strategy="auto"),
             additional_request_fields={
                 "tool_choice": {
+                    # ツールを1つずつ順番に呼び出す設定
                     "disable_parallel_tool_use": True,
                 }
             },
         ),
         tools=[execute_swarm_search],
+        # デフォルトのストリーミング出力ハンドラーを無効化
         callback_handler=None,
+        # ツール呼び出し時にログを出力するフックを設定
         hooks=[ToolLoggingHook()],
     )
