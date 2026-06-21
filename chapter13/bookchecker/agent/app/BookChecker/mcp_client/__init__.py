@@ -1,1 +1,1 @@
-# Package marker
+# mcp_client パッケージ: 外部 MCP サーバーとの接続クライアントをまとめる

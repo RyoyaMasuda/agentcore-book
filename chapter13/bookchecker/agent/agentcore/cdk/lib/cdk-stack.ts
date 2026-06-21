@@ -1,3 +1,9 @@
+/**
+ * AgentCore インフラを AWS にデプロイする CDK スタック定義。
+ *
+ * agentcore.json の内容を L3 コンストラクト経由で CloudFormation リソースに変換します。
+ */
+
 import {
   AgentCoreApplication,
   AgentCoreMcp,
@@ -7,6 +13,7 @@ import {
 import { CfnOutput, Stack, type StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 
+// Harness（評価用実行環境）1件分の設定
 export interface HarnessConfig {
   name: string;
   executionRoleArn?: string;
@@ -19,6 +26,7 @@ export interface HarnessConfig {
   apiKeyArn?: string;
 }
 
+// このスタックに渡すプロパティ一式
 export interface AgentCoreStackProps extends StackProps {
   /**
    * The AgentCore project specification containing agents, memories, and credentials.
@@ -57,13 +65,13 @@ export class AgentCoreStack extends Stack {
 
     const { spec, mcpSpec, credentials, harnesses } = props;
 
-    // Create AgentCoreApplication with all agents and harness roles
+    // エージェント本体と Harness 用 IAM ロールを含む AgentCore アプリケーションを作成
     this.application = new AgentCoreApplication(this, 'Application', {
       spec,
       harnesses: harnesses?.length ? harnesses : undefined,
     });
 
-    // Create AgentCoreMcp if there are gateways configured
+    // MCP ゲートウェイが設定されている場合のみ、MCP 関連リソースを追加する
     if (mcpSpec?.agentCoreGateways && mcpSpec.agentCoreGateways.length > 0) {
       new AgentCoreMcp(this, 'Mcp', {
         projectName: spec.name,
@@ -74,7 +82,7 @@ export class AgentCoreStack extends Stack {
       });
     }
 
-    // Stack-level output
+    // デプロイ後にスタック名を確認できるよう、CloudFormation 出力を定義
     new CfnOutput(this, 'StackNameOutput', {
       description: 'Name of the CloudFormation Stack',
       value: this.stackName,

@@ -1,10 +1,18 @@
 #!/usr/bin/env node
+
+/**
+ * AgentCore プロジェクトの CDK エントリーポイント。
+ *
+ * agentcore.json の設定を読み込み、デプロイ先ごとに CloudFormation スタックを合成します。
+ */
+
 import { AgentCoreStack } from '../lib/cdk-stack';
 import { ConfigIO, type AwsDeploymentTarget } from '@aws/agentcore-cdk';
 import { App, type Environment } from 'aws-cdk-lib';
 import * as path from 'path';
 import * as fs from 'fs';
 
+// AWS アカウント ID とリージョンを CDK の Environment 形式に変換する
 function toEnvironment(target: AwsDeploymentTarget): Environment {
   return {
     account: target.account,
@@ -12,26 +20,26 @@ function toEnvironment(target: AwsDeploymentTarget): Environment {
   };
 }
 
+// CloudFormation で使える名前にアンダースコアをハイフンへ置換する
 function sanitize(name: string): string {
   return name.replace(/_/g, '-');
 }
 
+// プロジェクト名とデプロイ先名からスタック名を生成する
 function toStackName(projectName: string, targetName: string): string {
   return `AgentCore-${sanitize(projectName)}-${sanitize(targetName)}`;
 }
 
 async function main() {
-  // Config root is parent of cdk/ directory. The CLI sets process.cwd() to agentcore/cdk/.
+  // 設定ファイルのルートは cdk/ の1つ上（agentcore/ ディレクトリ）
   const configRoot = path.resolve(process.cwd(), '..');
   const configIO = new ConfigIO({ baseDir: configRoot });
 
+  // agentcore.json と aws-targets.json を読み込む
   const spec = await configIO.readProjectSpec();
   const targets = await configIO.readAWSDeploymentTargets();
 
-  // Extract MCP configuration from project spec.
-  // Gateway fields are stored in agentcore.json but may not yet be on the
-  // AgentCoreProjectSpec type from @aws/agentcore-cdk, so we read them
-  // dynamically and cast the resulting object.
+  // MCP ゲートウェイ設定は型定義に未反映の場合があるため、動的に取り出す
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const specAny = spec as any;
   const mcpSpec = specAny.agentCoreGateways?.length
@@ -42,22 +50,19 @@ async function main() {
       }
     : undefined;
 
-  // Read deployed state for credential ARNs (populated by pre-deploy identity setup)
+  // 初回デプロイ前は存在しない場合もある、認証情報 ARN などのデプロイ済み状態を読み込む
   let deployedState: Record<string, unknown> | undefined;
   try {
     deployedState = JSON.parse(fs.readFileSync(path.join(configRoot, '.cli', 'deployed-state.json'), 'utf8'));
   } catch {
-    // Deployed state may not exist on first deploy
+    // ファイルがなければ undefined のまま続行
   }
 
   if (targets.length === 0) {
     throw new Error('No deployment targets configured. Please define targets in agentcore/aws-targets.json');
   }
 
-  // Read harness configs for role creation.
-  // Harness fields may not yet be on the AgentCoreProjectSpec type from @aws/agentcore-cdk,
-  // so we read them dynamically via specAny (same pattern as gateways above).
-  // Harness paths in agentcore.json are relative to the project root (parent of agentcore/).
+  // harness.json を読み込み、IAM ロールやコンテナ設定を収集する
   const projectRoot = path.resolve(configRoot, '..');
   const harnessConfigs: {
     name: string;
@@ -95,11 +100,12 @@ async function main() {
 
   const app = new App();
 
+  // デプロイ先（アカウント×リージョン）ごとに1つの CDK スタックを作成する
   for (const target of targets) {
     const env = toEnvironment(target);
     const stackName = toStackName(spec.name, target.name);
 
-    // Extract credentials from deployed state for this target
+    // このデプロイ先向けに登録済みの認証情報プロバイダー ARN を取り出す
     const targetState = (deployedState as Record<string, unknown>)?.targets as
       | Record<string, Record<string, unknown>>
       | undefined;
@@ -122,6 +128,7 @@ async function main() {
     });
   }
 
+  // CloudFormation テンプレートを生成する
   app.synth();
 }
 
